@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:cloudhub="http://www.mulesoft.org/schema/mule/cloudhub" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/cloudhub http://www.mulesoft.org/schema/mule/cloudhub/current/mule-cloudhub.xsd">
+	<cloudhub:config name="CloudHub_Config" doc:name="CloudHub Config" doc:id="d7b34fda-8359-49b5-8010-c6acd538011c" >
+		<cloudhub:oauth-client-credentials-connection clientId="6bb2a67f9d8b42adb96be0efbd644df0" clientSecret="668770578F3747878eAa8d8b7421628E" environment="cf0bad22-c5bb-406a-a337-6afa4ae53edb" />
+	</cloudhub:config>
+	<http:listener-config name="HTTP_Listener_config2" doc:name="HTTP Listener config" doc:id="9c659d80-243a-4a7d-b314-06d7f67f3d81" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="testingerrorFlow1" doc:id="33e17b57-2c53-4f99-aea3-aa09caf49949" >
+		<http:listener doc:name="Listener" doc:id="832ae890-e62e-4635-a613-cec28aebb332" config-ref="HTTP_Listener_config2" path="/hello"/>
+		<logger level="INFO" doc:name="Logger" doc:id="c6691e36-b70b-4905-9935-13915e8c7414" message="#[payload]" />
+		<choice doc:name="Choice" doc:id="faed16af-e723-4ff0-a197-34bc6a3ea3e0">
+			<when expression='#[payload.status=="success"]'>
+				<ee:transform doc:name="Transform Message" doc:id="8fbcef31-2d44-46ce-b096-a498bdcb0981">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"status":"success request"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="9b1113f0-d427-449e-a13e-bc36699803e6" message='#["the payload is" ++ payload]' />
+			</when>
+			<otherwise>
+<!-- [STUDIO:"Raise error"]				<raise-error doc:name="Raise error" doc:id="2dfe8e63-a365-4ee5-825e-af1414bf41f5" type="CUSTOM:ERROR_NOTIFICATION" description="ERROR"/> [STUDIO] -->
+				<flow-ref doc:name="Flow Reference" doc:id="58e500b2-4ced-4c20-85a9-b786ecffe8ad" name="sendNotificationSubFlow" />
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="sendNotificationSubFlow" doc:id="3a8a09ed-157d-45e7-b3eb-e16be917a07a" >
+		<ee:transform doc:name="Transform Message" doc:id="3219f495-08da-43a6-b68a-40a8e37ceefc">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	domain: "hexaview-4",
+	shortMessage: "payload dont create success ",
+	detailedMessage: write(payload, "application/json",  {"indent": "false"}),
+	transactionId: correlationId, 
+	priority: "ERROR"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+		<logger level="INFO" doc:name="Log - Sending Notification" doc:id="e62dd1ce-3347-4614-bf88-4fbbfb24450f" message="Sending Notificationss - #[payload]" />
+		<cloudhub:create-notification doc:id="21ea2a08-b630-4637-bec9-fbecc41a4ce0" config-ref="CloudHub_Config" priority="#[payload.priority]" doc:name="Create Notification" domain="testingerror">
+			<cloudhub:message ><![CDATA[#["The error is" ++ payload.detailedMessage]]]></cloudhub:message>
+			<cloudhub:custom-properties ><![CDATA[#[output application/java
+---
+{
+	shortMessage : payload.shortMessage default "",
+	correlationId : payload.transactionId default ""
+}]]]></cloudhub:custom-properties>
+		</cloudhub:create-notification>
+		<ee:transform doc:name="Create Response Message" doc:id="8410d99b-8624-4576-a7fc-926b95f461dd" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Notification successfully created!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Log - Notification Sent" doc:id="72f4d125-9e75-4c84-8229-d515fc9ebd85" message="Notification Sent" />
+	</sub-flow>
+</mule>
