@@ -1,0 +1,64 @@
+image: maven:3.8.4-openjdk-8
+
+pipelines:
+  branches:
+    feature/*:
+      - step:
+          name: Mulesoft Build and Test
+          caches:
+            - maven
+          script:
+            - echo "Building the Mule Application"
+            - mvn clean install
+            
+    develop:    
+      - step:
+          name: Mulesoft Build and Test
+          caches:
+            - maven
+          script:
+            - echo "Building the Mule Application"
+            - mvn clean install
+      - step:
+          name: Mulesoft Deployment to Development Environment 
+          deployment: Development
+          caches:
+            - maven
+          script:
+            - echo "Deploying the Mulesoft Application to Development Environment"
+            - mvn deploy -DmuleDeploy -Danypoint.platform.environment=DEV -Dapplication.name=testingError-notifications-dev -Dmule.env=DEV 
+              -Dapplication.runtimeVersion=4.4.0 -Dapplication.region=us-east-2 -Dapplication.workers=1 -Dapplication.workerType=MICRO
+              -Danypoint_platform_client_id_dev=$anypoint_platform_client_id_dev -Danypoint_platform_client_secret_dev=$anypoint_platform_client_secret_dev 
+            
+    release/*:    
+      - step:
+          name: Mulesoft Build and Test
+          caches:
+            - maven
+          script:
+            - echo "Building the Mule Application"
+            - mvn clean install
+      - step:
+          name: Mulesoft Deployment to UAT Environment 
+          deployment: UAT
+          caches:
+            - maven
+          script:
+            - echo "Deploying the Mulesoft Application to UAT Environment"
+            - mvn deploy -DmuleDeploy -Danypoint.platform.environment=UAT -Dapplication.name=bitbucket-cicd-demo-uat -Dmule.env=UAT 
+              -Dapplication.runtimeVersion=4.4.0 -Dapplication.region=us-east-2 -Dapplication.workers=1 -Dapplication.workerType=MICRO
+              -Danypoint_platform_client_id_uat=$anypoint_platform_client_id_uat -Danypoint_platform_client_secret_uat=$anypoint_platform_client_secret_uat        
+      - step:
+          name: Mulesoft Deployment to Production Environment 
+          deployment: Production
+          caches:
+            - maven
+          script:
+            - echo "Deploying the Mulesoft Application to Production Environment"
+            - mvn deploy -DmuleDeploy -Danypoint.platform.environment=PROD -Dapplication.name=bitbucket-cicd-demo-prod -Dmule.env=PROD 
+              -Dapplication.runtimeVersion=4.4.0 -Dapplication.region=us-east-2 -Dapplication.workers=1 -Dapplication.workerType=MICRO
+              -Danypoint_platform_client_id_prod=$anypoint_platform_client_id_prod 
+              -Danypoint_platform_client_secret_prod=$anypoint_platform_client_secret_prod     
+            
+            
+            
